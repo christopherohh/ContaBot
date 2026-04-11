@@ -2,7 +2,7 @@ const express = require("express");
 const app = express();
 app.use(express.json());
 
-const TELEGRAM_TOKEN = "8796958947:AAGeCVtXuphtuhOeCzK7cuCl7xiPbhXp7lM";
+const TELEGRAM_TOKEN = "8796958947:AAHODxzpnoyzvr4L5LnezRyxvFKVPMuDsOw";
 const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY;
 const TELEGRAM_API = `https://api.telegram.org/bot${TELEGRAM_TOKEN}`;
 
