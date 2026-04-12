@@ -1,18 +1,12 @@
 const express = require("express");
-const { Pool } = require("pg");
 const app = express();
 app.use(express.json());
 
 const TOKEN = "8796958947:AAHODxzpnoyzvr4L5LnezRyxvFKVPMuDsOw";
 const KEY = process.env.ANTHROPIC_API_KEY;
-const DB = process.env.DATABASE_URL;
 const TG = "https://api.telegram.org/bot" + TOKEN;
-
-const pool = new Pool({ connectionString: DB });
-
-async function initDB() {
-  await pool.query(`CREATE TABLE IF NOT EXISTS registros (id SERIAL PRIMARY KEY, chat_id TEXT, tipo TEXT, descripcion TEXT, monto NUMERIC, fecha TIMESTAMP DEFAULT NOW(), mes INTEGER, anio INTEGER)`);
-}
+const datos = {};
+const hist = {};
 
 async function send(id, text) {
   await fetch(TG + "/sendMessage", {
@@ -22,21 +16,29 @@ async function send(id, text) {
   });
 }
 
-async function guardar(chatId, tipo, desc, monto) {
-  const now = new Date();
-  await pool.query("INSERT INTO registros (chat_id, tipo, descripcion, monto, mes, anio) VALUES ($1,$2,$3,$4,$5,$6)", [String(chatId), tipo, desc, monto, now.getMonth() + 1, now.getFullYear()]);
-}
-
 async function claude(chatId, msg) {
-  const hist = await pool.query("SELECT role, content FROM conversacion WHERE chat_id=$1 ORDER BY id DESC LIMIT 20", [String(chatId)]).catch(() => ({ rows: [] }));
-  const messages = hist.rows.reverse().concat([{ role: "user", content: msg }]);
+  if (!hist[chatId]) hist[chatId] = [];
+  if (!datos[chatId]) datos[chatId] = [];
+  hist[chatId].push({ role: "user", content: msg });
+  if (hist[chatId].length > 30) hist[chatId] = hist[chatId].slice(-30);
+  const resumen = datos[chatId].slice(-50).map(r => r.fecha + " " + r.tipo + ": " + r.desc + " $" + r.monto).join("\n");
+  const system = "Eres ContaBot, contador para negocio de ropa de segunda mano. Registra ventas, compras y gastos. Genera reportes mensuales, estado de resultados y balance general. Usa emojis y Markdown de Telegram. Confirma registros con ok.\n\nREGISTROS GUARDADOS:\n" + (resumen || "Sin registros aun");
   const r = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: { "Content-Type": "application/json", "x-api-key": KEY, "anthropic-version": "2023-06-01" },
-    body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 1000, system: "Eres ContaBot, contador para negocio de ropa de segunda. Registra ventas compras gastos. Genera reportes mensuales estado de resultados y balance. Usa emojis y Markdown de Telegram.", messages }),
+    body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 1000, system, messages: hist[chatId] }),
   });
   const d = await r.json();
-  return d.content.map(b => b.text || "").join("") || "Error";
+  const reply = d.content.map(b => b.text || "").join("") || "Error";
+  hist[chatId].push({ role: "assistant", content: reply });
+  const low = msg.toLowerCase();
+  const nums = msg.match(/[\d]+/g);
+  const monto = nums ? parseInt(nums[nums.length - 1]) : 0;
+  const now = new Date().toLocaleDateString("es");
+  if (/(vend|venta)/.test(low) && monto > 0) datos[chatId].push({ fecha: now, tipo: "venta", desc: msg, monto });
+  else if (/(compr|paca|inventario)/.test(low) && monto > 0) datos[chatId].push({ fecha: now, tipo: "compra", desc: msg, monto });
+  else if (/(pagu|gasto|renta|luz|agua)/.test(low) && monto > 0) datos[chatId].push({ fecha: now, tipo: "gasto", desc: msg, monto });
+  return reply;
 }
 
 app.post("/webhook", async (req, res) => {
@@ -45,13 +47,13 @@ app.post("/webhook", async (req, res) => {
     const m = req.body.message;
     if (!m || !m.text) return;
     const id = m.chat.id;
-    const text = m.text;
-    if (text === "/start") { await send(id, "Hola! Soy ContaBot tu contador de ropa de segunda. Dime tus ventas, gastos o compras!"); return; }
-    const reply = await claude(id, text);
+    if (m.text === "/start") { await send(id, "Hola! Soy ContaBot tu contador de ropa de segunda. Dime tus ventas, gastos o compras!"); return; }
+    if (m.text === "/reset") { hist[id] = []; datos[id] = []; await send(id, "Historial limpiado!"); return; }
+    const reply = await claude(id, m.text);
     await send(id, reply);
   } catch (e) { console.error(e); }
 });
 
 app.get("/", (req, res) => res.send("ContaBot OK"));
 const PORT = process.env.PORT || 8080;
-app.listen(PORT, async () => { await initDB(); console.log("Puerto " + PORT); });
+app.listen(PORT, () => console.log("Puerto " + PORT));
