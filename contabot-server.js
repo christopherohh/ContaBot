@@ -399,7 +399,7 @@ app.post("/webhook",async function(req,res){
       await send(id,msg);return;
     }
     var handled=await handleMonto(id,text);
-    if(!handled){var reply=await claude(id,text);await send(id,reply);}
+    if(!handled){var reply=await claude(id,text);await send(id,reply);await send(id,"Que mas deseas registrar?",btnTipo());}
   }catch(e){console.error(e);}
 });
 
