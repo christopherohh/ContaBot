@@ -22,11 +22,14 @@ var pool = null;
 try {
   var pg = require("pg");
   pool = new pg.Pool({
-    connectionString: process.env.DATABASE_URL,
+    connectionString: dbUrl,
     ssl: { rejectUnauthorized: false },
-    connectionTimeoutMillis: 5000,
+    idleTimeoutMillis: 30000,
+    max: 3,
+    connectionTimeoutMillis: 8000,
   });
-} catch(e) { console.log("pg no disponible"); }
+  pool.on("error", function(err) { console.log("Pool error:", err.message); dbOk = false; });
+} catch(e) { console.log("pg no disponible:", e.message); }
 
 async function initDB() {
   if (!pool) { dbOk = false; return; }
@@ -156,7 +159,8 @@ function menuPrincipal() {
     [{ text: "📝 Registrar", callback_data: "menu_registrar" }, { text: "📦 Inventario", callback_data: "menu_inventario" }],
     [{ text: "📊 Ver Excel", callback_data: "menu_excel" }, { text: "📈 Resumen mes", callback_data: "menu_resumen" }],
     [{ text: "🗓 Reporte semanal", callback_data: "menu_semanal" }, { text: "📅 Comparar meses", callback_data: "menu_comparar" }],
-    [{ text: "🔮 Prediccion", callback_data: "menu_prediccion" }, { text: "👤 Mi empleada", callback_data: "menu_empleada" }]
+    [{ text: "🔮 Prediccion", callback_data: "menu_prediccion" }, { text: "👤 Mi empleada", callback_data: "menu_empleada" }],
+    [{ text: "🗑 Eliminar ultimo registro", callback_data: "menu_eliminar" }]
   ]};
 }
 
@@ -308,6 +312,33 @@ async function handleCallback(query) {
   if(data==="menu_comparar"){var txt=await textoComparacion(chatId);await editMsg(chatId,msgId,txt,menuPrincipal());return;}
   if(data==="menu_prediccion"){var txt=await textoPrediccion(chatId);await editMsg(chatId,msgId,txt,menuPrincipal());return;}
   if(data==="menu_empleada"){await editMsg(chatId,msgId,EMPLEADA_ID?"Tu empleada esta conectada.":"Tu empleada aun no esta conectada.\n\nPide que le escriba /start al bot y mandame su Chat ID.",menuPrincipal());return;}
+  if(data==="menu_eliminar"){
+    var regs=await getRegistros(chatId);
+    if(regs.length===0){await editMsg(chatId,msgId,"No hay registros para eliminar.",menuPrincipal());return;}
+    var ultimo=regs[0];
+    var emoji=ultimo.tipo==="venta"?"💰":ultimo.tipo==="compra"?"🛍":"💸";
+    var msg=emoji+" *Ultimo registro:*\n\nConcepto: "+ultimo.desc+"\nMonto: $"+(parseFloat(ultimo.monto)||0).toLocaleString("es")+"\nFecha: "+ultimo.fecha+"\nMes: "+ultimo.mes+"\n\n*Quieres eliminarlo?*";
+    await editMsg(chatId,msgId,msg,{inline_keyboard:[[{text:"✅ Si, eliminar",callback_data:"confirmar_eliminar"},{text:"❌ No, cancelar",callback_data:"menu_inicio"}]]});
+    return;
+  }
+  if(data==="confirmar_eliminar"){
+    var regs=await getRegistros(chatId);
+    if(regs.length===0){await editMsg(chatId,msgId,"No hay registros.",menuPrincipal());return;}
+    var ultimo=regs[0];
+    if(dbOk){
+      try{
+        await pool.query("DELETE FROM registros WHERE chat_id=$1 AND id=(SELECT id FROM registros WHERE chat_id=$1 ORDER BY created_at DESC LIMIT 1)",[String(chatId)]);
+      }catch(e){
+        // Si falla DB, eliminar de memoria
+        if(memDatos[chatId]&&memDatos[chatId].length>0) memDatos[chatId].shift();
+      }
+    } else {
+      if(memDatos[chatId]&&memDatos[chatId].length>0) memDatos[chatId].shift();
+    }
+    var emoji=ultimo.tipo==="venta"?"💰":ultimo.tipo==="compra"?"🛍":"💸";
+    await editMsg(chatId,msgId,emoji+" *Registro eliminado!*\n\n"+ultimo.desc+" - $"+(parseFloat(ultimo.monto)||0).toLocaleString("es"),menuPrincipal());
+    return;
+  }
   if(data==="inv_ver"){var inv=await getInventario(chatId);await editMsg(chatId,msgId,"Tienes *"+inv+" piezas* en inventario.",btnInventario());return;}
   if(data==="inv_agregar"){ses.paso="inv_piezas";await editMsg(chatId,msgId,"Cuantas piezas vas a agregar?");return;}
   if(data==="atras_tipo"){ses.tipo=null;ses.concepto=null;ses.monto=null;ses.pago=null;ses.paso=null;await editMsg(chatId,msgId,"Que vas a registrar?",btnTipo());return;}
