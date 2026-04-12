@@ -8,7 +8,7 @@ const KEY = process.env.ANTHROPIC_API_KEY;
 const DB = process.env.DATABASE_URL;
 const TG = "https://api.telegram.org/bot" + TOKEN;
 
-const pool = new Pool({ connectionString: DB, ssl: { rejectUnauthorized: false } });
+const pool = new Pool({ connectionString: DB });
 
 async function initDB() {
   await pool.query(`CREATE TABLE IF NOT EXISTS registros (id SERIAL PRIMARY KEY, chat_id TEXT, tipo TEXT, descripcion TEXT, monto NUMERIC, fecha TIMESTAMP DEFAULT NOW(), mes INTEGER, anio INTEGER)`);
