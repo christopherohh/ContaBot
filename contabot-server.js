@@ -34,29 +34,20 @@ async function editMsg(chatId, msgId, text, keyboard) {
   });
 }
 
-async function answerCallback(callbackId, text) {
+async function answerCallback(id, text) {
   await fetch(TG + "/answerCallbackQuery", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ callback_query_id: callbackId, text: text || "" }),
+    body: JSON.stringify({ callback_query_id: id, text: text || "" }),
   });
 }
 
 function menuPrincipal() {
   return {
     inline_keyboard: [
-      [
-        { text: "📝 Registrar", callback_data: "menu_registrar" },
-        { text: "📦 Inventario", callback_data: "menu_inventario" }
-      ],
-      [
-        { text: "📊 Ver Excel", callback_data: "menu_excel" },
-        { text: "📈 Resumen mes", callback_data: "menu_resumen" }
-      ],
-      [
-        { text: "🗓 Reporte semanal", callback_data: "menu_semanal" },
-        { text: "👤 Mi empleada", callback_data: "menu_empleada" }
-      ]
+      [{ text: "📝 Registrar", callback_data: "menu_registrar" }, { text: "📦 Inventario", callback_data: "menu_inventario" }],
+      [{ text: "📊 Ver Excel", callback_data: "menu_excel" }, { text: "📈 Resumen mes", callback_data: "menu_resumen" }],
+      [{ text: "🗓 Reporte semanal", callback_data: "menu_semanal" }, { text: "👤 Mi empleada", callback_data: "menu_empleada" }]
     ]
   };
 }
@@ -64,10 +55,7 @@ function menuPrincipal() {
 function btnTipo() {
   return {
     inline_keyboard: [
-      [
-        { text: "💰 Ingreso", callback_data: "tipo_ingreso" },
-        { text: "💸 Gasto", callback_data: "tipo_gasto" }
-      ],
+      [{ text: "💰 Ingreso", callback_data: "tipo_ingreso" }, { text: "💸 Gasto", callback_data: "tipo_gasto" }],
       [{ text: "🔙 Menu principal", callback_data: "menu_inicio" }]
     ]
   };
@@ -103,10 +91,7 @@ function btnConceptoGasto() {
 function btnPago() {
   return {
     inline_keyboard: [
-      [
-        { text: "💵 Efectivo", callback_data: "pago_efectivo" },
-        { text: "📲 Transferencia", callback_data: "pago_transferencia" }
-      ],
+      [{ text: "💵 Efectivo", callback_data: "pago_efectivo" }, { text: "📲 Transferencia", callback_data: "pago_transferencia" }],
       [{ text: "🔙 Atras", callback_data: "atras_concepto" }]
     ]
   };
@@ -139,8 +124,7 @@ function guardarRegistro(chatId, ses) {
 
 function resumenMes(chatId) {
   var regs = datos[chatId] || [];
-  var v = 0, c = 0, g = 0, ef = 0, tr = 0;
-  var lug = {};
+  var v = 0, c = 0, g = 0, ef = 0, tr = 0; var lug = {};
   regs.forEach(function(r) {
     if (r.tipo === "venta") { v += r.monto; if (r.pago === "transferencia") tr += r.monto; else ef += r.monto; if (r.lugar) lug[r.lugar] = (lug[r.lugar] || 0) + r.monto; }
     else if (r.tipo === "compra") c += r.monto;
@@ -154,7 +138,7 @@ function resumenMes(chatId) {
   msg += "  Transferencia: $" + tr.toLocaleString("es") + "\n";
   msg += "Compras inventario: $" + c.toLocaleString("es") + "\n";
   msg += "Gastos operativos: $" + g.toLocaleString("es") + "\n";
-  msg += "Utilidad: $" + util.toLocaleString("es") + "\n";
+  msg += "Utilidad neta: *$" + util.toLocaleString("es") + "*\n";
   msg += "Inventario: " + (inventario[chatId] || 0) + " piezas\n";
   if (top) msg += "Mejor lugar: " + top + " ($" + lug[top].toLocaleString("es") + ")\n";
   msg += "\n" + (util > 0 ? "Vas positivo este mes!" : "Cuidado, revisa tus gastos.");
@@ -163,8 +147,6 @@ function resumenMes(chatId) {
 
 function resumenSemanal(chatId) {
   var regs = datos[chatId] || [];
-  var ahora = new Date();
-  var hace7 = new Date(ahora.getTime() - 7 * 24 * 60 * 60 * 1000);
   var v = 0, c = 0, g = 0, ef = 0, tr = 0;
   regs.forEach(function(r) {
     if (r.tipo === "venta") { v += r.monto; if (r.pago === "transferencia") tr += r.monto; else ef += r.monto; }
@@ -172,14 +154,7 @@ function resumenSemanal(chatId) {
     else g += r.monto;
   });
   var util = v - c - g;
-  var msg = "*Reporte semanal*\n\n";
-  msg += "Ventas: $" + v.toLocaleString("es") + "\n";
-  msg += "  Efectivo: $" + ef.toLocaleString("es") + "\n";
-  msg += "  Transferencia: $" + tr.toLocaleString("es") + "\n";
-  msg += "Compras: $" + c.toLocaleString("es") + "\n";
-  msg += "Gastos: $" + g.toLocaleString("es") + "\n";
-  msg += "Utilidad: $" + util.toLocaleString("es") + "\n";
-  msg += "\n" + (util > 0 ? "Buena semana! Vas positivo." : "Cuidado, revisa tus gastos.");
+  var msg = "*Reporte semanal*\n\nVentas: $" + v.toLocaleString("es") + "\n  Efectivo: $" + ef.toLocaleString("es") + "\n  Transferencia: $" + tr.toLocaleString("es") + "\nCompras: $" + c.toLocaleString("es") + "\nGastos: $" + g.toLocaleString("es") + "\nUtilidad: *$" + util.toLocaleString("es") + "*\nInventario: " + (inventario[chatId] || 0) + " piezas\n\n" + (util > 0 ? "Buena semana! Vas positivo." : "Cuidado, revisa tus gastos.");
   return msg;
 }
 
@@ -191,130 +166,47 @@ async function handleCallback(query) {
   if (!sesion[chatId]) sesion[chatId] = {};
   var ses = sesion[chatId];
 
-  // Menu principal
-  if (data === "menu_inicio") {
-    sesion[chatId] = {};
-    await editMsg(chatId, msgId, "Que deseas hacer?", menuPrincipal());
-    return;
-  }
-
-  if (data === "menu_registrar") {
-    ses.paso = null;
-    await editMsg(chatId, msgId, "Que vas a registrar?", btnTipo());
-    return;
-  }
-
-  if (data === "menu_inventario") {
-    await editMsg(chatId, msgId, "Inventario actual: *" + (inventario[chatId] || 0) + " piezas*\n\nQue deseas hacer?", btnInventario());
-    return;
-  }
-
-  if (data === "menu_excel") {
-    await editMsg(chatId, msgId, "Generando tu Excel profesional...");
-    await generarExcel(chatId);
-    await send(chatId, "Que deseas hacer ahora?", menuPrincipal());
-    return;
-  }
-
-  if (data === "menu_resumen") {
-    await editMsg(chatId, msgId, resumenMes(chatId), menuPrincipal());
-    return;
-  }
-
-  if (data === "menu_semanal") {
-    await editMsg(chatId, msgId, resumenSemanal(chatId), menuPrincipal());
-    return;
-  }
-
+  if (data === "menu_inicio") { sesion[chatId] = {}; await editMsg(chatId, msgId, "Que deseas hacer?", menuPrincipal()); return; }
+  if (data === "menu_registrar") { ses.paso = null; await editMsg(chatId, msgId, "Que vas a registrar?", btnTipo()); return; }
+  if (data === "menu_inventario") { await editMsg(chatId, msgId, "Inventario actual: *" + (inventario[chatId] || 0) + " piezas*\n\nQue deseas hacer?", btnInventario()); return; }
+  if (data === "menu_excel") { await editMsg(chatId, msgId, "Generando tu Excel profesional..."); await generarExcel(chatId); await send(chatId, "Que deseas hacer ahora?", menuPrincipal()); return; }
+  if (data === "menu_resumen") { await editMsg(chatId, msgId, resumenMes(chatId), menuPrincipal()); return; }
+  if (data === "menu_semanal") { await editMsg(chatId, msgId, resumenSemanal(chatId), menuPrincipal()); return; }
   if (data === "menu_empleada") {
     var msg = EMPLEADA_ID ? "Tu empleada esta conectada." : "Tu empleada aun no esta conectada.\n\nPide que le escriba /start a @contabot_minegocio_bot y mandame su Chat ID para activarla.";
-    await editMsg(chatId, msgId, msg, menuPrincipal());
-    return;
+    await editMsg(chatId, msgId, msg, menuPrincipal()); return;
   }
-
-  // Inventario
-  if (data === "inv_ver") {
-    await editMsg(chatId, msgId, "Tienes *" + (inventario[chatId] || 0) + " piezas* en inventario.", btnInventario());
-    return;
-  }
-
-  if (data === "inv_agregar") {
-    ses.paso = "inv_piezas";
-    await editMsg(chatId, msgId, "Cuantas piezas vas a agregar? Escribe el numero:");
-    return;
-  }
-
-  // Navegacion
-  if (data === "atras_tipo") {
-    ses.tipo = null; ses.concepto = null; ses.monto = null; ses.pago = null; ses.paso = null;
-    await editMsg(chatId, msgId, "Que vas a registrar?", btnTipo());
-    return;
-  }
-
-  if (data === "atras_concepto") {
-    ses.concepto = null; ses.monto = null; ses.pago = null; ses.paso = null;
-    var kb = ses.tipo === "ingreso" ? btnConceptoIngreso() : btnConceptoGasto();
-    await editMsg(chatId, msgId, "Selecciona el concepto:", kb);
-    return;
-  }
-
-  // Tipo
-  if (data === "tipo_ingreso") {
-    ses.tipo = "ingreso"; ses.paso = "concepto";
-    await editMsg(chatId, msgId, "Selecciona el tipo de ingreso:", btnConceptoIngreso());
-    return;
-  }
-
-  if (data === "tipo_gasto") {
-    ses.tipo = "gasto"; ses.paso = "concepto";
-    await editMsg(chatId, msgId, "Selecciona el tipo de gasto:", btnConceptoGasto());
-    return;
-  }
-
-  // Concepto
-  if (data.indexOf("concepto_") === 0) {
-    ses.concepto = data.replace("concepto_", "");
-    ses.paso = "monto";
-    await editMsg(chatId, msgId, "Concepto: *" + ses.concepto + "*\n\nCuanto es el monto? Escribe el numero:");
-    return;
-  }
-
-  // Pago
+  if (data === "inv_ver") { await editMsg(chatId, msgId, "Tienes *" + (inventario[chatId] || 0) + " piezas* en inventario.", btnInventario()); return; }
+  if (data === "inv_agregar") { ses.paso = "inv_piezas"; await editMsg(chatId, msgId, "Cuantas piezas vas a agregar? Escribe el numero:"); return; }
+  if (data === "atras_tipo") { ses.tipo = null; ses.concepto = null; ses.monto = null; ses.pago = null; ses.paso = null; await editMsg(chatId, msgId, "Que vas a registrar?", btnTipo()); return; }
+  if (data === "atras_concepto") { ses.concepto = null; ses.monto = null; ses.pago = null; ses.paso = null; var kb = ses.tipo === "ingreso" ? btnConceptoIngreso() : btnConceptoGasto(); await editMsg(chatId, msgId, "Selecciona el concepto:", kb); return; }
+  if (data === "tipo_ingreso") { ses.tipo = "ingreso"; ses.paso = "concepto"; await editMsg(chatId, msgId, "Selecciona el tipo de ingreso:", btnConceptoIngreso()); return; }
+  if (data === "tipo_gasto") { ses.tipo = "gasto"; ses.paso = "concepto"; await editMsg(chatId, msgId, "Selecciona el tipo de gasto:", btnConceptoGasto()); return; }
+  if (data.indexOf("concepto_") === 0) { ses.concepto = data.replace("concepto_", ""); ses.paso = "monto"; await editMsg(chatId, msgId, "Concepto: *" + ses.concepto + "*\n\nCuanto es el monto? Escribe el numero:"); return; }
   if (data === "pago_efectivo" || data === "pago_transferencia") {
     ses.pago = data.replace("pago_", "");
     guardarRegistro(chatId, ses);
     var emoji = ses.tipo === "ingreso" ? "💰" : "💸";
     var confirmMsg = emoji + " *Registrado!*\n\nConcepto: " + ses.concepto + "\nMonto: $" + ses.monto.toLocaleString("es") + "\nPago: " + ses.pago + "\nFecha: " + getFecha() + "\nMes: " + getMes();
     sesion[chatId] = {};
-    await editMsg(chatId, msgId, confirmMsg, menuPrincipal());
-    return;
+    await editMsg(chatId, msgId, confirmMsg, menuPrincipal()); return;
   }
 }
 
 async function handleTexto(chatId, text) {
   var ses = sesion[chatId] || {};
-
-  // Monto del registro
   if (ses.paso === "monto") {
     var num = parseFloat(text.replace(/[$,\s]/g, ""));
     if (isNaN(num) || num <= 0) { await send(chatId, "Escribe solo el numero. Ejemplo: 3500"); return true; }
-    ses.monto = num;
-    ses.paso = "pago";
-    await send(chatId, "Monto: *$" + num.toLocaleString("es") + "*\n\nComo fue el pago?", btnPago());
-    return true;
+    ses.monto = num; ses.paso = "pago";
+    await send(chatId, "Monto: *$" + num.toLocaleString("es") + "*\n\nComo fue el pago?", btnPago()); return true;
   }
-
-  // Piezas inventario
   if (ses.paso === "inv_piezas") {
     var piezas = parseInt(text.replace(/[,\s]/g, ""));
     if (isNaN(piezas) || piezas <= 0) { await send(chatId, "Escribe solo el numero de piezas. Ejemplo: 50"); return true; }
-    ses.piezas = piezas;
-    ses.paso = "inv_costo";
-    await send(chatId, "Piezas: *" + piezas + "*\n\nCuanto costaron en total? Escribe el monto:");
-    return true;
+    ses.piezas = piezas; ses.paso = "inv_costo";
+    await send(chatId, "Piezas: *" + piezas + "*\n\nCuanto costaron en total?"); return true;
   }
-
-  // Costo inventario
   if (ses.paso === "inv_costo") {
     var costo = parseFloat(text.replace(/[$,\s]/g, ""));
     if (isNaN(costo) || costo <= 0) { await send(chatId, "Escribe solo el monto. Ejemplo: 4500"); return true; }
@@ -322,13 +214,55 @@ async function handleTexto(chatId, text) {
     inventario[chatId] += ses.piezas;
     if (!datos[chatId]) datos[chatId] = [];
     datos[chatId].push({ fecha: getFecha(), mes: getMes(), tipo: "compra", desc: "Compra mercancia " + ses.piezas + " piezas", monto: costo, pago: "efectivo", lugar: null });
-    var confirmInv = "📦 *Inventario actualizado!*\n\nPiezas agregadas: " + ses.piezas + "\nCosto: $" + costo.toLocaleString("es") + "\nInventario total: " + inventario[chatId] + " piezas";
     sesion[chatId] = {};
-    await send(chatId, confirmInv, menuPrincipal());
-    return true;
+    await send(chatId, "Inventario actualizado!\n\nPiezas agregadas: " + ses.piezas + "\nCosto: $" + costo.toLocaleString("es") + "\nInventario total: " + inventario[chatId] + " piezas", menuPrincipal()); return true;
+  }
+  return false;
+}
+
+async function claude(chatId, msg) {
+  if (!hist[chatId]) hist[chatId] = [];
+  if (!datos[chatId]) datos[chatId] = [];
+  if (!inventario[chatId]) inventario[chatId] = 0;
+
+  var resumen = datos[chatId].slice(-100).map(function(r) {
+    return r.fecha + " | " + r.tipo + " | " + r.desc + " | $" + r.monto + " | " + (r.pago || "") + " | " + (r.lugar || "");
+  }).join("\n");
+
+  var totalVentas = datos[chatId].filter(function(r) { return r.tipo === "venta"; }).reduce(function(s, r) { return s + r.monto; }, 0);
+  var totalGastos = datos[chatId].filter(function(r) { return r.tipo !== "venta"; }).reduce(function(s, r) { return s + r.monto; }, 0);
+  var utilidad = totalVentas - totalGastos;
+
+  var system = "Eres ContaBot, un asistente financiero inteligente y amigable para un negocio de ropa de segunda mano en Mexico. Respondes en Telegram con Markdown y emojis.\n\nTu personalidad: cercano, directo, como un contador amigo que habla en espanol mexicano casual.\n\nDATOS DEL NEGOCIO:\n- Inventario actual: " + inventario[chatId] + " piezas\n- Total ventas del mes: $" + totalVentas.toLocaleString("es") + "\n- Total gastos del mes: $" + totalGastos.toLocaleString("es") + "\n- Utilidad: $" + utilidad.toLocaleString("es") + "\n- Mes: " + getMes() + "\n\nREGISTROS:\n" + (resumen || "Sin registros aun") + "\n\nCAPACIDADES:\n1. Interpretar mensajes naturales como: 'gaste 200 en gasolina', 'vendi en santa 3500', 'me depositaron 2000'\n2. Cuando detectes un registro en el mensaje, confirmalo y guardalo mentalmente\n3. Responder preguntas financieras: cuanto gaste, como voy, puedo ahorrar mas\n4. Dar consejos financieros para el negocio\n5. Analizar tendencias de ventas por lugar\n\nCUANDO EL USUARIO REGISTRE ALGO DE FORMA NATURAL:\n- Confirma con un emoji y el detalle\n- Agrega REGISTRO_DETECTADO al final con formato JSON: {tipo, desc, monto, pago}\n- Ejemplo: REGISTRO_DETECTADO:{\"tipo\":\"gasto\",\"desc\":\"Gasolina\",\"monto\":200,\"pago\":\"efectivo\"}\n\nSiempre termina sugiriendo usar el menu para mas opciones.";
+
+  hist[chatId].push({ role: "user", content: msg });
+  if (hist[chatId].length > 20) hist[chatId] = hist[chatId].slice(-20);
+
+  var r = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "x-api-key": KEY, "anthropic-version": "2023-06-01" },
+    body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 1000, system: system, messages: hist[chatId] }),
+  });
+  var d = await r.json();
+  var reply = d.content.map(function(b) { return b.text || ""; }).join("") || "No pude procesar eso";
+  hist[chatId].push({ role: "assistant", content: reply });
+
+  // Detectar si Claude encontro un registro
+  var match = reply.match(/REGISTRO_DETECTADO:\s*(\{[^}]+\})/);
+  if (match) {
+    try {
+      var reg = JSON.parse(match[1]);
+      if (!datos[chatId]) datos[chatId] = [];
+      datos[chatId].push({ fecha: getFecha(), mes: getMes(), tipo: reg.tipo === "ingreso" ? "venta" : reg.tipo, desc: reg.desc, monto: reg.monto, pago: reg.pago || "efectivo", lugar: reg.lugar || null });
+      // Verificar alerta
+      var v = datos[chatId].filter(function(r) { return r.tipo === "venta"; }).reduce(function(s, r) { return s + r.monto; }, 0);
+      var g = datos[chatId].filter(function(r) { return r.tipo !== "venta"; }).reduce(function(s, r) { return s + r.monto; }, 0);
+      if (g > v && v > 0) await send(chatId, "ALERTA: Tus gastos ($" + g + ") superan tus ventas ($" + v + ")!");
+    } catch (e) { console.error("Error parsing registro:", e); }
+    reply = reply.replace(/REGISTRO_DETECTADO:\s*\{[^}]+\}/, "").trim();
   }
 
-  return false;
+  return reply;
 }
 
 async function generarExcel(id) {
@@ -349,7 +283,7 @@ async function generarExcel(id) {
   function df(){return{name:"Arial",size:10};}
   ws.getRow(2).height=36;ws.getRow(3).height=18;ws.getRow(4).height=34;ws.getRow(5).height=28;ws.getRow(6).height=28;
   for(var r=7;r<=206;r++)ws.getRow(r).height=20;
-  ws.mergeCells("A2:N2");var t=ws.getCell("A2");t.value="TABLA DE INGRESOS Y GASTOS";t.font={name:"Arial",bold:true,size:16,color:{argb:"FF"+WHITE}};t.fill=solid(DARK_GRAY);t.alignment=ctr();t.border=thick(DARK_GRAY);
+  ws.mergeCells("A2:N2");var t=ws.getCell("A2");t.value="TABLA DE INGRESOS Y GASTOS - "+getMes().toUpperCase();t.font={name:"Arial",bold:true,size:16,color:{argb:"FF"+WHITE}};t.fill=solid(DARK_GRAY);t.alignment=ctr();t.border=thick(DARK_GRAY);
   var ingresos=registros.filter(function(r){return r.tipo==="venta";}).reduce(function(s,r){return s+r.monto;},0);
   var gastos=registros.filter(function(r){return r.tipo!=="venta";}).reduce(function(s,r){return s+r.monto;},0);
   var ganancia=ingresos-gastos;
@@ -408,21 +342,13 @@ async function generarExcel(id) {
 function programarTareas() {
   var ahora=new Date();
   var finMes=new Date(ahora.getFullYear(),ahora.getMonth()+1,1,8,0,0);
-  setTimeout(function(){
-    send(CHAT_ID,"Reporte mensual! Generando tu Excel...").then(function(){return generarExcel(CHAT_ID);}).then(function(){datos[CHAT_ID]=[];hist[CHAT_ID]=[];programarTareas();});
-  },finMes-ahora);
+  setTimeout(function(){send(CHAT_ID,"Reporte mensual! Generando tu Excel...").then(function(){return generarExcel(CHAT_ID);}).then(function(){datos[CHAT_ID]=[];hist[CHAT_ID]=[];programarTareas();});},finMes-ahora);
   var diasLunes=(8-ahora.getDay())%7||7;
   var lunes=new Date(ahora.getFullYear(),ahora.getMonth(),ahora.getDate()+diasLunes,8,0,0);
-  setTimeout(function(){
-    send(CHAT_ID,resumenSemanal(CHAT_ID),menuPrincipal());
-    setInterval(function(){send(CHAT_ID,resumenSemanal(CHAT_ID),menuPrincipal());},7*24*60*60*1000);
-  },lunes-ahora);
+  setTimeout(function(){send(CHAT_ID,resumenSemanal(CHAT_ID),menuPrincipal());setInterval(function(){send(CHAT_ID,resumenSemanal(CHAT_ID),menuPrincipal());},7*24*60*60*1000);},lunes-ahora);
   var pm7=new Date(ahora.getFullYear(),ahora.getMonth(),ahora.getDate(),19,0,0);
   var d7=pm7>ahora?pm7-ahora:(24*60*60*1000)-(ahora-pm7);
-  setTimeout(function(){
-    send(CHAT_ID,"Hola! No olvides registrar tus ventas de hoy.",menuPrincipal());
-    setInterval(function(){send(CHAT_ID,"Hola! No olvides registrar tus ventas de hoy.",menuPrincipal());},24*60*60*1000);
-  },d7);
+  setTimeout(function(){send(CHAT_ID,"Hola! No olvides registrar tus ventas de hoy.",menuPrincipal());setInterval(function(){send(CHAT_ID,"Hola! No olvides registrar tus ventas de hoy.",menuPrincipal());},24*60*60*1000);},d7);
 }
 
 app.post("/webhook",async function(req,res){
@@ -432,22 +358,15 @@ app.post("/webhook",async function(req,res){
     if(body.callback_query){await handleCallback(body.callback_query);return;}
     var m=body.message;
     if(!m||!m.text)return;
-    var id=m.chat.id;
-    var text=m.text;
-
-    // Solo el jefe y la empleada pueden usar el bot
+    var id=m.chat.id;var text=m.text;
     var autorizado=String(id)===String(CHAT_ID)||(EMPLEADA_ID&&String(id)===String(EMPLEADA_ID));
     if(!autorizado){await send(id,"No tienes acceso a este bot.");return;}
-
-    if(text==="/start"||text==="/menu"){
-      await send(id,"Hola! Soy *ContaBot* tu contador. Que deseas hacer?",menuPrincipal());
-      return;
-    }
+    if(text==="/start"||text==="/menu"){await send(id,"Hola! Soy *ContaBot* tu contador inteligente. Que deseas hacer?",menuPrincipal());return;}
     if(text==="/reset"){datos[id]=[];hist[id]=[];sesion[id]={};await send(id,"Historial limpiado!",menuPrincipal());return;}
-
     var handled=await handleTexto(id,text);
     if(!handled){
-      await send(id,"Usa el menu para registrar datos o escribe tu pregunta.",menuPrincipal());
+      var reply=await claude(id,text);
+      await send(id,reply,menuPrincipal());
     }
   }catch(e){console.error(e);}
 });
