@@ -1,6 +1,7 @@
 const express = require("express");
 const ExcelJS = require("exceljs");
 const FormData = require("form-data");
+const XLSX = require("xlsx");
 const app = express();
 app.use(express.json());
 
@@ -260,6 +261,39 @@ async function textoPrediccion(chatId) {
   return "*Prediccion para "+getMes()+"*\n\nDias: "+diaActual+" de "+diasEnMes+"\nVenta diaria promedio: $"+Math.round(vd).toLocaleString("es")+"\n\n*Proyeccion al fin de mes:*\nVentas: $"+vP.toLocaleString("es")+"\nGastos: $"+gP.toLocaleString("es")+"\nUtilidad estimada: *$"+uP.toLocaleString("es")+"*\n\n"+(uP>0?"Va a ser un buen mes! Sigue asi.":"Cuidado, los gastos van a superar las ventas.");
 }
 
+async function analizarArchivo(chatId, fileId, caption) {
+  try {
+    await send(chatId, "Descargando y analizando tu archivo...");
+    var fileRes = await fetch(TG + "/getFile?file_id=" + fileId);
+    var fileData = await fileRes.json();
+    if (!fileData.ok) { await send(chatId, "No pude obtener el archivo.", menuPrincipal()); return; }
+    var fileUrl = "https://api.telegram.org/file/bot" + TOKEN + "/" + fileData.result.file_path;
+    var downloadRes = await fetch(fileUrl);
+    var buffer = Buffer.from(await downloadRes.arrayBuffer());
+    var wb = XLSX.read(buffer, { type: "buffer" });
+    var texto = "";
+    wb.SheetNames.forEach(function(sheetName) {
+      var ws = wb.Sheets[sheetName];
+      var csv = XLSX.utils.sheet_to_csv(ws);
+      if (csv.trim().length > 0) texto += "Hoja: " + sheetName + "\n" + csv.substring(0, 3000) + "\n\n";
+    });
+    if (!texto.trim()) { await send(chatId, "El archivo esta vacio.", menuPrincipal()); return; }
+    var pregunta = caption || "Analiza este archivo financiero y dame un reporte completo.";
+    var system = "Eres ContaBot, experto financiero para negocio de ropa de segunda mano en Mexico. Analiza los datos del archivo Excel en espanol con emojis. Incluye: totales de ingresos, gastos, utilidad neta, mes mas rentable, lugar con mas ventas, y 3 consejos para mejorar el negocio.";
+    var r = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-api-key": KEY, "anthropic-version": "2023-06-01" },
+      body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 1500, system: system, messages: [{ role: "user", content: pregunta + "\n\nDATOS:\n" + texto }] })
+    });
+    var d = await r.json();
+    var reply = d.content.map(function(b) { return b.text || ""; }).join("") || "No pude analizar el archivo.";
+    await send(chatId, reply, menuPrincipal());
+  } catch(e) {
+    console.error("Error archivo:", e.message);
+    await send(chatId, "Error al analizar. Manda un archivo .xlsx o .csv", menuPrincipal());
+  }
+}
+
 async function handleCallback(query) {
   var chatId=query.message.chat.id; var msgId=query.message.message_id; var data=query.data;
   await answerCallback(query.id);
@@ -425,7 +459,22 @@ app.post("/webhook",async function(req,res){
     var body=req.body;
     if(body.callback_query){await handleCallback(body.callback_query);return;}
     var m=body.message;
-    if(!m||!m.text)return;
+    if(!m)return;
+    // Manejar archivos
+    if(m.document) {
+      var id=m.chat.id;
+      var autorizado=String(id)===String(CHAT_ID)||(EMPLEADA_ID&&String(id)===String(EMPLEADA_ID));
+      if(!autorizado){await send(id,"No tienes acceso.");return;}
+      var doc=m.document;
+      var nombre=doc.file_name||"";
+      if(nombre.endsWith(".xlsx")||nombre.endsWith(".xls")||nombre.endsWith(".csv")) {
+        await analizarArchivo(id, doc.file_id, m.caption);
+      } else {
+        await send(id,"Solo puedo analizar archivos .xlsx o .csv. Exporta tu archivo Numbers como Excel primero.",menuPrincipal());
+      }
+      return;
+    }
+    if(!m.text)return;
     var id=m.chat.id;var text=m.text;
     var autorizado=String(id)===String(CHAT_ID)||(EMPLEADA_ID&&String(id)===String(EMPLEADA_ID));
     if(!autorizado){await send(id,"No tienes acceso a este bot.");return;}
