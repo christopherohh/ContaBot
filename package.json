@@ -1,6 +1,6 @@
 {
   "name": "contabot-telegram",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "main": "contabot-server.js",
   "scripts": {
     "start": "node contabot-server.js"
@@ -8,7 +8,8 @@
   "dependencies": {
     "express": "^4.18.2",
     "node-fetch": "^2.7.0",
-    "pg": "^8.11.3"
+    "pg": "^8.11.3",
+    "xlsx": "^0.18.5"
   },
   "engines": {
     "node": ">=18.0.0"
