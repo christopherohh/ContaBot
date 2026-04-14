@@ -5,7 +5,7 @@ const XLSX = require("xlsx");
 const app = express();
 app.use(express.json());
 
-const TOKEN = "8796958947:AAHODxzpnoyzvr4L5LnezRyxvFKVPMuDsOw";
+const TOKEN = "8796958947:AAGgVGjlyO9aqgDiasE_oWQW0x0XGDbTqME";
 const KEY = process.env.ANTHROPIC_API_KEY;
 const TG = "https://api.telegram.org/bot" + TOKEN;
 const CHAT_ID = "5786549088";
