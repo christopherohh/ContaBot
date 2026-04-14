@@ -1,7 +1,6 @@
 {
   "name": "contabot-telegram",
   "version": "2.0.0",
-  "description": "ContaBot v2 - Contador IA con base de datos para ropa de segunda",
   "main": "contabot-server.js",
   "scripts": {
     "start": "node contabot-server.js"
